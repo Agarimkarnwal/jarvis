@@ -1,0 +1,129 @@
+# JARVIS AI Assistant Configuration
+jarvis:
+  # Voice Settings
+  voice:
+    wake_word: "Hey JARVIS"
+    input_device: "default"
+    output_device: "default"
+    sensitivity: 0.8
+    voice_speed: 1.0
+    voice_volume: 0.9
+    language: "en-US"
+    noise_reduction: true
+    
+  # AI Model Configuration
+  ai:
+    primary_model: "llama3:8b"
+    fallback_model: "phi3:mini"
+    embedding_model: "all-minilm:l6-v2"
+    temperature: 0.7
+    max_tokens: 512
+    context_window: 4096
+    quantization: "4-bit"
+    cache_size: 1000
+    
+  # System Settings
+  system:
+    auto_start: true
+    minimize_to_tray: true
+    update_check: true
+    log_level: "INFO"
+    max_log_size: "10MB"
+    backup_enabled: true
+    security_mode: "standard"
+    
+  # UI Configuration
+  ui:
+    theme: "holographic"
+    animations: true
+    transparency: 0.9
+    window_opacity: 0.85
+    particle_effects: true
+    voice_visualizer: true
+    system_monitor: true
+    font_size: 14
+    font_family: "Segoe UI"
+    
+  # Performance Settings
+  performance:
+    max_memory_usage: "4GB"
+    cpu_threshold: 80
+    thread_pool_size: 4
+    cache_timeout: 3600
+    cleanup_interval: 300
+    
+  # Commands and Automation
+  commands:
+    custom_macros_enabled: true
+    learning_enabled: true
+    context_awareness: true
+    proactive_assistance: true
+    multi_language_support: true
+    
+  # Network and Services
+  network:
+    offline_mode: false
+    local_processing: true
+    cloud_sync: false
+    update_channel: "stable"
+    
+  # Privacy and Security
+  privacy:
+    data_collection: false
+    telemetry: false
+    local_storage_only: true
+    encryption_enabled: true
+    session_timeout: 3600
+
+# Application Paths
+applications:
+  chrome: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  vscode: "C:\\Users\\%USERNAME%\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+  spotify: "C:\\Users\\%USERNAME%\\AppData\\Roaming\\Spotify\\Spotify.exe"
+  discord: "C:\\Users\\%USERNAME%\\AppData\\Local\\Discord\\app-1.0.9007\\Discord.exe"
+  steam: "C:\\Program Files (x86)\\Steam\\steam.exe"
+
+# Voice Commands Mapping
+voice_commands:
+  system_control:
+    shutdown: "shut down the computer"
+    restart: "restart the computer"
+    sleep: "put the computer to sleep"
+    lock: "lock the screen"
+    
+  application_control:
+    open_chrome: "open chrome"
+    open_vscode: "open visual studio code"
+    open_spotify: "open spotify"
+    close_application: "close [application]"
+    
+  file_operations:
+    find_file: "find file [filename]"
+    open_folder: "open folder [path]"
+    create_folder: "create folder [name]"
+    
+  media_control:
+    play_music: "play music"
+    pause_music: "pause music"
+    next_track: "next song"
+    volume_up: "volume up"
+    volume_down: "volume down"
+    
+  web_search:
+    search_google: "search for [query]"
+    open_website: "open [website]"
+    
+  productivity:
+    set_reminder: "remind me to [task] at [time]"
+    take_note: "take a note [content]"
+    start_timer: "start timer for [duration]"
+
+# AI Personality Settings
+personality:
+  name: "JARVIS"
+  greeting_style: "professional"
+  response_style: "helpful"
+  humor_level: 0.3
+  formality: 0.7
+  proactivity: 0.8
+  learning_rate: 0.5

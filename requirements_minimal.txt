@@ -1,0 +1,29 @@
+# Minimal working requirements for JARVIS
+# Essential core dependencies first
+
+# System monitoring
+psutil==5.9.6
+
+# Voice recognition
+SpeechRecognition==3.10.0
+pyaudio==0.2.11
+
+# Text-to-speech
+pyttsx3==2.90
+
+# AI and ML (simplified)
+transformers==4.36.0
+torch==2.1.1
+
+# Web interface
+streamlit==1.28.1
+plotly==5.17.0
+
+# Utilities
+pyyaml==6.0.1
+requests==2.31.0
+numpy==1.24.3
+pandas==2.1.4
+
+# System automation
+pyautogui==0.9.54
