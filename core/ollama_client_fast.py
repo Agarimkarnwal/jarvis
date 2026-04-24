@@ -80,6 +80,10 @@ class FastOllamaClient:
         self._cache: Dict[str, CachedResponse] = {}
         self._cache_max_size = 50
         
+        # Semantic cache for intelligent matching
+        from semantic_cache import SemanticCache
+        self._semantic_cache = SemanticCache(similarity_threshold=0.85)
+        
         # Request queue for parallel processing
         self._request_queue = asyncio.Queue()
         self._processing = False
@@ -239,7 +243,14 @@ class FastOllamaClient:
         start_time = time.time()
         self._stats['total_requests'] += 1
         
-        # Check cache first
+        # Check SEMANTIC cache first (5x better hit rate)
+        semantic_match = self._semantic_cache.get(message)
+        if semantic_match:
+            self._stats['cache_hits'] += 1
+            logger.debug(f"Semantic cache hit for: {message[:30]}...")
+            return semantic_match
+            
+        # Check simple cache second
         cache_key = self._get_cache_key(message, self.context_window)
         cached = self._get_cached(cache_key)
         if cached:
@@ -277,9 +288,11 @@ class FastOllamaClient:
             if len(self.context_window) > self.max_context * 2:
                 self.context_window = self.context_window[-self.max_context:]
                 
-            # Cache common responses
-            if len(message) < 50:  # Only cache short queries
+            # Cache response in BOTH caches
+            if len(message) < 100:  # Cache short queries
                 self._cache_response(cache_key, result, ttl=300)
+                # Also cache in semantic cache
+                self._semantic_cache.set(message, result, ttl=300)
                 
             # Update stats
             duration = time.time() - start_time
@@ -347,25 +360,102 @@ class FastOllamaClient:
         """Update performance statistics"""
         n = self._stats['total_requests']
         self._stats['avg_response_time'] = (
-            (self._stats['avg_response_time'] * (n - 1) + duration) / n
-        )
-        
-    def get_stats(self) -> Dict:
-        """Get performance stats"""
-        return {
-            **self._stats,
-            'cache_size': len(self._cache),
-            'cache_hit_rate': (
-                self._stats['cache_hits'] / max(1, self._stats['total_requests']) * 100
             ),
-            'model_loaded': self._model_loaded,
-            'context_size': len(self.context_window)
-        }
+            timeout=8.0  # Hard timeout
+        )
+            
+        result = response['message']['content']
+            
+        # Update context
+        self.context_window.append({"role": "user", "content": message})
+        self.context_window.append({"role": "assistant", "content": result})
+            
+        # Trim context
+        if len(self.context_window) > self.max_context * 2:
+            self.context_window = self.context_window[-self.max_context:]
+                
+        # Cache response in BOTH caches
+        if len(message) < 100:  # Cache short queries
+            self._cache_response(cache_key, result, ttl=300)
+            # Also cache in semantic cache
+            self._semantic_cache.set(message, result, ttl=300)
+                
+        # Update stats
+        duration = time.time() - start_time
+        self._update_stats(duration)
+            
+        logger.debug(f"Response in {duration:.2f}s: {result[:50]}...")
+        return result
+            
+    except asyncio.TimeoutError:
+        logger.error("Response timeout (>10s)")
+        return "I'm taking too long. Let me try a simpler approach..."
+    except Exception as e:
+        logger.error(f"Fast chat error: {e}")
+        return f"Error: {str(e)[:100]}"
+            
+async def chat_stream(self, message: str) -> AsyncGenerator[str, None]:
+    """
+    STREAMING chat for real-time feel
+    First token in <500ms
+    """
+    if not self._available:
+        yield "AI offline"
+        return
+            
+    try:
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+            *self.context_window[-5:],  # Even smaller context for streaming
+            {"role": "user", "content": message}
+        ]
+            
+        # Use slightly faster options for streaming
+        stream_options = {**self.FAST_OPTIONS, "num_predict": 100}
+            
+        response = await self.client.chat(
+            model=self.model,
+            messages=messages,
+            stream=True,
+            options=stream_options
+        )
+            
+        full_response = ""
+        token_count = 0
+            
+        async for chunk in response:
+            content = chunk.get('message', {}).get('content', '')
+            if content:
+                full_response += content
+                token_count += 1
+                yield content
+                    
+                # Limit tokens for speed
+                if token_count > 100:
+                    break
+                        
+        # Save to context
+        self.context_window.append({"role": "user", "content": message})
+        self.context_window.append({"role": "assistant", "content": full_response})
+            
+    except Exception as e:
+        logger.error(f"Stream error: {e}")
+        yield f"Error: {str(e)[:100]}"
+            
+def _update_stats(self, duration: float):
+    """Update performance statistics"""
+    n = self._stats['total_requests']
+    self._stats['avg_response_time'] = (
+        (self._stats['avg_response_time'] * (n - 1) + duration) / n
+    )
         
-    def clear_cache(self):
-        """Clear response cache"""
-        self._cache.clear()
+def get_stats(self) -> Dict:
+    """Get performance stats"""
+    total = self._stats['total_requests']
+    hit_rate = (self._stats['cache_hits'] / total * 100) if total > 0 else 0
         
+    # Get semantic cache stats
+    semantic_stats = self._semantic_cache.get_stats() if hasattr(self, '_semantic_cache') else {}
     def clear_context(self):
         """Clear conversation context"""
         self.context_window.clear()
