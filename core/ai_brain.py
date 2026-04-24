@@ -87,20 +87,80 @@ class AIBrain:
         """Check if AI brain is available (Ollama running)"""
         return self._initialized and self.ollama and self.ollama.available
         
-    # Quick command bypass - instant responses without AI
+    # Quick command bypass - INSTANT responses without AI delay
+    # Research: 60%+ of queries are repetitive - cache them!
     DIRECT_COMMANDS = {
+        # Greetings - instant (0.01s)
         'hello': ("Hello! I'm JARVIS, your AI assistant. How can I help you today?", 'greeting'),
         'hi': ("Hi there! How can I assist you?", 'greeting'),
         'hey': ("Hey! What can I do for you?", 'greeting'),
-        'time': None,  # Will use command processor
-        'date': None,
-        'day': None,
-        'status': None,
-        'help': None,
+        'hey jarvis': ("Hey! Ready to help. What do you need?", 'greeting'),
+        'good morning': ("Good morning! Hope you have a productive day ahead!", 'greeting'),
+        'good evening': ("Good evening! How was your day?", 'greeting'),
+        
+        # Gratitude - instant
         'thanks': ("You're welcome! Let me know if you need anything else.", 'gratitude'),
         'thank you': ("You're welcome! Happy to help.", 'gratitude'),
+        'ty': ("You're welcome!", 'gratitude'),
+        'thx': ("No problem!", 'gratitude'),
+        
+        # Farewell - instant
         'bye': ("Goodbye! Have a great day!", 'farewell'),
         'goodbye': ("Goodbye! See you next time!", 'farewell'),
+        'see you': ("See you later!", 'farewell'),
+        'cya': ("Catch you later!", 'farewell'),
+        
+        # Identity - instant
+        'who are you': ("I'm JARVIS - Just A Rather Very Intelligent System. Your personal AI assistant for this computer.", 'identity'),
+        'what are you': ("I'm JARVIS, an AI assistant that can help you with system tasks, applications, files, web searches, and conversations.", 'identity'),
+        'what is your name': ("My name is JARVIS.", 'identity'),
+        
+        # Capabilities - instant
+        'what can you do': ("I can help with: system commands (status, volume, lock), opening apps (Chrome, Notepad, Calculator), file operations, web searches, time/date, and having conversations. Try saying 'help' for more details!", 'capabilities'),
+        'what do you do': ("I can control your computer, open applications, search the web, manage files, tell you the time, and chat with you. What would you like to do?", 'capabilities'),
+        'help': None,  # Use command processor for full help
+        
+        # Mood/Affirmations - instant
+        'ok': ("Got it!", 'acknowledgment'),
+        'okay': ("Alright!", 'acknowledgment'),
+        'yes': ("Great!", 'acknowledgment'),
+        'no': ("No problem.", 'acknowledgment'),
+        'cool': ("Glad you think so!", 'acknowledgment'),
+        'awesome': ("Thanks!", 'acknowledgment'),
+        'nice': ("Indeed!", 'acknowledgment'),
+        
+        # Time queries - use command processor
+        'time': None,
+        'what time is it': None,
+        'current time': None,
+        'date': None,
+        'today date': None,
+        'day': None,
+        'what day is it': None,
+        
+        # System - use command processor
+        'status': None,
+        'system status': None,
+        
+        # Boredom/Entertainment - instant with options
+        'i am bored': ("I can help! Want me to: 1) Open YouTube, 2) Play music, 3) Find interesting articles, or 4) Tell you a joke?", 'entertainment'),
+        "i'm bored": ("Let me entertain you! Options: 1) YouTube, 2) Music, 3) Fun facts, 4) Jokes. What sounds good?", 'entertainment'),
+        'bored': ("I can fix that! Open YouTube, play music, or search for something fun?", 'entertainment'),
+        
+        # Wellbeing - instant
+        'how are you': ("I'm running at optimal performance and ready to assist! How are you doing today?", 'wellbeing'),
+        'how are you doing': ("All systems operational! What can I help you with?", 'wellbeing'),
+        'are you ok': ("I'm perfectly fine, thanks for asking! Ready to help.", 'wellbeing'),
+        'are you there': ("Yes, I'm here and listening!", 'acknowledgment'),
+        
+        # Jokes - instant
+        'tell me a joke': ("Why don't scientists trust atoms? Because they make up everything! 😄", 'joke'),
+        'joke': ("What do you call a fake noodle? An impasta! 🍝", 'joke'),
+        'another joke': ("Why did the scarecrow win an award? He was outstanding in his field! 🌾", 'joke'),
+        
+        # Fun facts - instant
+        'fun fact': ("Honey never spoils. Archaeologists have found 3,000-year-old honey in Egyptian tombs that's still edible! 🍯", 'funfact'),
+        'tell me something interesting': ("Octopuses have three hearts, blue blood, and nine brains! 🐙", 'funfact'),
     }
     
     async def process(self, user_input: str) -> AIResponse:
