@@ -9,7 +9,7 @@ from typing import Optional, Dict, List, AsyncGenerator
 from dataclasses import dataclass
 from enum import Enum
 
-from ollama_client import OllamaClient, get_ollama_client
+from ollama_client_fast import FastOllamaClient, get_fast_ollama_client
 from context_manager import ContextManager, get_context_manager, ConversationTurn
 from intent_classifier import IntentClassifier, get_intent_classifier, IntentType
 from async_command_processor import AsyncCommandProcessor, get_async_command_processor
@@ -47,19 +47,20 @@ class AIBrain:
     """
     
     def __init__(self):
-        self.ollama: Optional[OllamaClient] = None
+        self.ollama: Optional[FastOllamaClient] = None
         self.context: Optional[ContextManager] = None
         self.intent_classifier: Optional[IntentClassifier] = None
         self.command_processor: Optional[AsyncCommandProcessor] = None
         self._initialized = False
+        self._response_timeout = 5.0  # 5 second max for AI responses
         
     async def initialize(self) -> bool:
         """Initialize all AI brain components"""
         try:
             logger.info("🧠 Initializing JARVIS AI Brain...")
             
-            # Initialize Ollama (AI core)
-            self.ollama = get_ollama_client()
+            # Initialize Ollama FAST client (AI core)
+            self.ollama = get_fast_ollama_client()
             if not await self.ollama.initialize():
                 logger.warning("Ollama not available - running in command-only mode")
                 
@@ -86,15 +87,26 @@ class AIBrain:
         """Check if AI brain is available (Ollama running)"""
         return self._initialized and self.ollama and self.ollama.available
         
+    # Quick command bypass - instant responses without AI
+    DIRECT_COMMANDS = {
+        'hello': ("Hello! I'm JARVIS, your AI assistant. How can I help you today?", 'greeting'),
+        'hi': ("Hi there! How can I assist you?", 'greeting'),
+        'hey': ("Hey! What can I do for you?", 'greeting'),
+        'time': None,  # Will use command processor
+        'date': None,
+        'day': None,
+        'status': None,
+        'help': None,
+        'thanks': ("You're welcome! Let me know if you need anything else.", 'gratitude'),
+        'thank you': ("You're welcome! Happy to help.", 'gratitude'),
+        'bye': ("Goodbye! Have a great day!", 'farewell'),
+        'goodbye': ("Goodbye! See you next time!", 'farewell'),
+    }
+    
     async def process(self, user_input: str) -> AIResponse:
         """
         Process user input through AI brain
-        
-        Args:
-            user_input: What the user said/typed
-            
-        Returns:
-            AIResponse with text and metadata
+        FAST: Direct responses for common queries, AI for complex ones
         """
         if not self._initialized:
             return AIResponse(
@@ -102,6 +114,25 @@ class AIBrain:
                 response_type=ResponseType.ERROR,
                 confidence=0.0
             )
+            
+        # FAST PATH: Direct command bypass (no AI delay)
+        text_lower = user_input.lower().strip()
+        if text_lower in self.DIRECT_COMMANDS:
+            cached_response = self.DIRECT_COMMANDS[text_lower]
+            if cached_response is not None:
+                response_text, intent_label = cached_response
+                return AIResponse(
+                    text=response_text,
+                    response_type=ResponseType.COMMAND,
+                    commands_executed=[intent_label],
+                    confidence=0.99
+                )
+            # None means use command processor (time, date, etc.)
+        
+        # Check for exact command matches (instant execution)
+        if text_lower.startswith(('open ', 'launch ', 'start ')):
+            return await self._handle_command(user_input, 
+                self.intent_classifier.classify(user_input))
             
         try:
             # Step 1: Classify intent
@@ -195,8 +226,14 @@ User: {user_input}
 
 Respond naturally as JARVIS:"""
         
-        # Get AI response
-        response_text = await self.ollama.chat_sync(enhanced_prompt)
+        # Get AI response (FAST with timeout)
+        try:
+            response_text = await asyncio.wait_for(
+                self.ollama.chat_fast(enhanced_prompt),
+                timeout=self._response_timeout
+            )
+        except asyncio.TimeoutError:
+            response_text = "I'm thinking too hard about this. Let me simplify..."
         
         # Record in context
         turn = ConversationTurn(
@@ -227,8 +264,15 @@ Result: {command_result.message}
 
 Provide a brief, natural response acknowledging what was done:"""
         
+        # Get AI explanation (FAST with timeout)
         if self.available:
-            ai_text = await self.ollama.chat_sync(prompt)
+            try:
+                ai_text = await asyncio.wait_for(
+                    self.ollama.chat_fast(prompt),
+                    timeout=3.0  # 3 sec for hybrid
+                )
+            except asyncio.TimeoutError:
+                ai_text = command_result.message
         else:
             ai_text = command_result.message
             
